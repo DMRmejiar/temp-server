@@ -39,6 +39,7 @@ const select = async (table, query = null, project = "*") => {
       .join(" AND "); */
     querySelect += ` WHERE ${query}`;
   }
+  console.log(querySelect);
   return await new Promise((resolve) => {
     db.query(querySelect, (err, res) => {
       if (err) throw err;

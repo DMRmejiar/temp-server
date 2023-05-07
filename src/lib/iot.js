@@ -9,10 +9,18 @@ const initIot = async () => {
       resolve(true);
     });
   });
+  iot.on("error", (topic, payload) => {
+    console.log("Error:", topic, payload);
+    initIoT();
+  });
   if (connection) {
     console.log("Conectado a AWS IoT Core");
     iot.subscribe(config.iotCore.topic);
   }
+  iot.on("reconnect", () => {
+    console.log("Se perdió la conexión, intentando reconectar...");
+    iot.reconnect();
+  });
   return connection;
 };
 

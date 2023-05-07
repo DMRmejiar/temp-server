@@ -1,9 +1,8 @@
 const { select } = require("../lib/database");
-const { formatDate } = require("../utils/format");
 
 const fieldMean = (list, device, field) => {
   const filteredList = list
-    .filter((item) => item.device === device)
+    .filter((item) => item.deviceId === device)
     .map((item) => item[field]);
   console.log(filteredList);
   return (
@@ -16,30 +15,34 @@ const getLastResults = async (_, res) => {
   let from = new Date(tempDate);
   let to = new Date(tempDate);
   from.setHours(
-    from.getHours() - 4 - (from.getMinutes() > 30 ? 0 : 1),
+    from.getHours() - (from.getMinutes() > 30 ? 0 : 1),
     from.getMinutes() > 30 ? 0 : 30,
     0,
     0
   );
-  to.setHours(to.getHours() + 7, to.getMinutes() > 0 ? 30 : 0, 0, 0);
+  to.setHours(to.getHours(), to.getMinutes() > 0 ? 30 : 0, 0, 0);
+  console.log(`Search in range ${from} to ${to}`);
   const dbResults = await select(
-    "records"
-    /*, `'date' >= UNIX_TIMESTAMP('${formatDate(
-      from
-    )}') AND 'date' < UNIX_TIMESTAMP('${formatDate(to)}')` */
+    "records",
+    `createdAt BETWEEN ${from.getTime()} AND ${to.getTime()}`
   );
   console.log(dbResults);
-  const devices = [...new Set(dbResults.map((rows) => rows.device))];
-  const data = devices.map((device) => {
-    return {
-      device: device,
-      data: {
-        pm1: fieldMean(dbResults, device, "pm1"),
-        pm25: fieldMean(dbResults, device, "pm25"),
-        pm10: fieldMean(dbResults, device, "pm10"),
-      },
-    };
-  });
+  const devices = [...new Set(dbResults.map((rows) => rows.deviceId))];
+  const data = await Promise.all(
+    devices.map(async (device) => {
+      console.log(device);
+      const deviceData = await select("devices", `id = ${device}`);
+      return {
+        device: deviceData[0].name,
+        location: deviceData[0].location,
+        data: {
+          pm1: fieldMean(dbResults, device, "pm1"),
+          pm25: fieldMean(dbResults, device, "pm25"),
+          pm10: fieldMean(dbResults, device, "pm10"),
+        },
+      };
+    })
+  );
   return res.json(data);
 };
 
